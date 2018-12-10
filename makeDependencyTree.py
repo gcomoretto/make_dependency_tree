@@ -59,24 +59,40 @@ def do_dot_jpg(deps, fn):
     #
     global chpk
     global colors
+    global doColors
 
     nodes = []
 
     print(' .. saving dot file and generating jpg')
-   
+  
     dotf = fn + '.dot'
     jpgf = fn + '.jpg'
 
     F=open(dotf, "w")
     F.write("graph G {\n")
-    F.write("    node [shape=box, style=filled];\n")
+    F.write("  node [shape=box, style=filled];\n\n")
+    if doColors:
+        F.write('  subgraph legend {\n')
+        F.write('    node [shape=box, style=filled, fontsize=8, height=0.25];\n')
+        #F.write('    rank = same')
+        F.write('    legend [label="Legend", style=solid]\n')
+        for k,v in colors.items():
+            F.write('    "' + k + '" [color=' + v + ']\n')
+        keys = colors.keys()
+        skeys = '" -- "'.join(keys)
+        F.write('    legend -- "' + skeys + '" [style="invis"]\n')
+        F.write('  }\n\n')
     for k, v in deps.items():
-       if k not in nodes:
-          F.write('    "' + k + '" [color=' + colors[ chpk[k] ] + '];\n')
-          nodes.append(k)
-       if len(v)!=0:
-          for e in v:
-              F.write('    "' + e + '" -- "' + k + '";\n')
+        if k not in nodes:
+            if doColors:
+                if k in chpk.keys():
+                    F.write('    "' + k + '" [color=' + colors[ chpk[k] ] + '];\n')
+                else:
+                    F.write('    "' + k + '" [style=solid, color=black];\n')
+            nodes.append(k)
+        if len(v)!=0:
+            for e in v:
+                F.write('    "' + e + '" -- "' + k + '";\n')
     F.write("}\n")
     F.close()
     call(["dot", "-Tjpg", "-o"+jpgf, dotf])
@@ -98,6 +114,7 @@ def readChFile(swpFile):
     colors = {}
 
     if swpFile:
+        print('Read characterization...')
         with open(swpFile) as fch:
             reader = csv.reader(fch,dialect='excel')
             for line in reader:
@@ -108,6 +125,7 @@ def readChFile(swpFile):
 
     colorF = 'colors.csv'
     if os.path.isfile(colorF):
+        print('Read colors...')
         with open(colorF) as fcol:
             reader = csv.reader(fcol,dialect='excel')
             for line in reader:
@@ -122,11 +140,17 @@ def doFile(inFile, swpFile):
     print('Input file', inFile)
     global pkgs
     global chpk
+    global doColors
 
     pkgs = {}
     deps = {}
     chpk = {}
+    doColors = False
 
+    if swpFile:
+        doColors = True
+
+    print('Read input file ...')
     with open(inFile) as fin:
         pkgs = readFile(fin)
     fin.close()
