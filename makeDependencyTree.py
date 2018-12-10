@@ -15,7 +15,7 @@ from subprocess import call
 def readFile(fin):
     # read pkgs from fin
     # sort pkgs, no deps first
-    count = 0
+    #count = 0
     pkgs = {}
     lp = {}
     opkgs = {}
@@ -57,6 +57,11 @@ def check_indirect(cv, values):
 
 def do_dot_jpg(deps, fn):
     #
+    global chpk
+    global colors
+
+    nodes = []
+
     print(' .. saving dot file and generating jpg')
    
     dotf = fn + '.dot'
@@ -64,8 +69,11 @@ def do_dot_jpg(deps, fn):
 
     F=open(dotf, "w")
     F.write("graph G {\n")
-    F.write("    node [shape=box];\n")
+    F.write("    node [shape=box, style=filled];\n")
     for k, v in deps.items():
+       if k not in nodes:
+          F.write('    "' + k + '" [color=' + colors[ chpk[k] ] + '];\n')
+          nodes.append(k)
        if len(v)!=0:
           for e in v:
               F.write('    "' + e + '" -- "' + k + '";\n')
@@ -75,24 +83,55 @@ def do_dot_jpg(deps, fn):
 
 
 def do_tex_pdf(deps, fn):
-    #
+    # to be written
     print(' .. saving tex file and generating pdf')
 
     dotf = fn + '.dot'
     jpgf = fn + '.jpg'
 
+def readChFile(swpFile):
+    # read characterization file
+    global colors
+    global chpk
 
-def doFile(inFile):
+    ch = {}
+    colors = {}
+
+    if swpFile:
+        with open(swpFile) as fch:
+            reader = csv.reader(fch,dialect='excel')
+            for line in reader:
+                if line[1]:
+                    ch[ line[0] ] = line[1]
+        fch.close
+        chpk = ch
+
+    colorF = 'colors.csv'
+    if os.path.isfile(colorF):
+        with open(colorF) as fcol:
+            reader = csv.reader(fcol,dialect='excel')
+            for line in reader:
+                if line[1]:
+                    #print(line)
+                    colors[ line[0] ] = line[1]
+        fcol.close
+        
+
+def doFile(inFile, swpFile):
     # 
     print('Input file', inFile)
     global pkgs
+    global chpk
 
     pkgs = {}
     deps = {}
+    chpk = {}
 
     with open(inFile) as fin:
         pkgs = readFile(fin)
     fin.close()
+
+    readChFile(swpFile)
 
     for k, values in pkgs.items():
         #print(k)
@@ -109,7 +148,7 @@ def doFile(inFile):
 
     tmpFn=os.path.basename(inFile)
     sf = tmpFn.split('.')
-    print('Output files', sf[0], '(.dot, .jpg, .tex, .pdf)')
+    print('Output files', sf[0], '(.dot, .jpg)')
 
     do_dot_jpg(deps, sf[0])
     #do_tex_pdf(deps, sf[0])
@@ -119,7 +158,10 @@ def doFile(inFile):
 
 # MAIN
 parser = argparse.ArgumentParser()
-parser.add_argument("--file", help="Input file ", default='lsst_distrib.pkg.txt')
+parser.add_argument("--file", help="Input file", default='lsst_distrib.pkg.txt')
+parser.add_argument("--SWP", help="Characterization based on top level SW products")
 args = parser.parse_args()
-inp=args.file
-doFile(inp)
+inp = args.file
+swp = args.SWP
+print('Pkg characterization:', swp)
+doFile(inp,swp)
